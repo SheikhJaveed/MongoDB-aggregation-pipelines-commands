@@ -1,5 +1,7 @@
 /** MONGODB aggregation pipelines **/
 
+// Refer to dataset -> data.json
+
 // Count the number of active users
 [
   {
