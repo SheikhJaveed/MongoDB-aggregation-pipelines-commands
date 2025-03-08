@@ -1,0 +1,340 @@
+/** MONGODB aggregation pipelines **/
+
+// Count the number of active users
+[
+  {
+    $match: {
+      isActive: true,
+    },
+  },
+  {
+    $count: "activeUsers",
+  },
+]
+
+--------
+
+// What is the average age of the users?
+[
+  {
+    $group: {
+      _id: null,
+      averageAge: {
+        $avg: "$age",
+      },
+    },
+  },
+]
+
+// What is the average age of men and women in the list of users?
+[
+  {
+    $group: {
+      _id: "$gender",
+      averageAge: {
+        $avg: "$age",
+      },
+    },
+  },
+]
+
+------
+
+// List the top 2 common favorite fruits of the users.
+
+[
+  {
+    $group: {
+      _id: "$favoriteFruit",
+      count: {
+        $sum: 1,
+      },
+    },
+  },
+  {
+    $sort: {
+      count: 1,
+    },
+  },
+  {
+    $limit: 2,
+  },
+]
+
+------
+
+// Count the number of male and female users.
+
+[
+  {	
+	$group: {
+	_id:"$gender",
+        genderCount:{
+		$sum:1
+      }
+    }
+  },
+  {
+    $sort:{
+	genderCount: 1
+    }
+  }
+]
+
+-------------
+
+// Find the country with maximum number of registered users.
+[
+  {
+    $group: {
+      _id: "$company.location.country",
+      userCount: {
+        $sum: 1,
+      },
+    },
+  },
+  {
+    $sort: {
+      userCount: -1,
+    },
+  },
+  {
+    $limit: 1,
+  },
+]
+
+----------
+
+// List all unique colors present in the collection.
+
+[
+  {
+    $group: {
+      _id: "$eyeColor",
+    },
+  },
+]
+
+----------
+
+// What is the average number of tags per user?
+
+/* unwind -> Deconstructs an array field from the input documents to output a document for each element. Each output document is the input document with the value of the array field replaced by the element. */
+
+[
+  {
+    $unwind: "$tags",
+  },
+  {
+    $group: {
+      _id: "$_id",
+      numberOfTags: {
+        $sum: 1,
+      },
+    },
+  },
+  {
+    $group: {
+      _id: null,
+      averageNumOfTags: {
+        $avg: "$numberOfTags",
+      },
+    },
+  },
+]
+
+---------------
+
+// adding fields to existing documents
+
+//Note: The $ifNull expression evaluates input expressions for null values and returns:
+
+The first non-null input expression value found.
+
+A replacement expression value if all input expressions evaluate to null.
+
+
+[
+  {
+    $addFields: {
+      numberOfTags: {
+        $size: { $ifNull: ["$tags", []] }, //if not null count tags and if null then replace with []
+      },
+    },
+  },
+]
+
+
+-------------------
+
+// How many users have 'enim' as one of their tags?
+
+[
+  {
+    $match: {
+      tags: "enim", //matches all docs with tag 'enim'
+    },
+  },
+  {
+    $count: "usersWithEnimTag",
+  },
+]
+
+------------
+
+// What are the names and age of users who are inactive and have 'velit' as a tag?
+
+[
+  {
+    $match: {
+      isActive: false,
+      tags: "velit",
+    },
+  },
+  {
+    $project: {
+      name: 1,
+      age: 1,
+    },
+  },
+]
+
+-----------
+
+// how many user have a phone number starting with '+1 (940)' 
+
+[
+  {
+    $match: {
+      "company.phone": /^\+1 \(940\)/,
+    },
+  },
+  {
+    $count: "usersWithSpecifiedNumber",
+  },
+]
+
+--------------
+
+// Get 4 users who have registered most recently
+
+
+[
+  {
+    $sort: {
+      registered: -1,
+    },
+  },
+  {
+    $limit: 4,
+  },
+  {
+    $project: {
+      name: 1,
+      age: 1,
+      registered: 1,
+    },
+  },
+]
+
+------------
+
+// Categorise users based on their favorite fruit
+
+[
+  {
+    $group: {
+      _id: "$favoriteFruit",
+      users: {
+        $push: "$name", //push creates an array to store multiple documents
+      },
+    },
+  },
+]
+
+-------------
+
+// How many users have 'ad" as their second tag?
+
+[
+  {
+    $match: {
+      "tags.1": "ad",
+    },
+  },
+  {
+    $count: "ad-tag",
+  },
+]
+
+--------------
+
+// Find the users who have both 'enim' and 'id' as their tags
+
+[
+  {
+    $match: {
+      tags: {
+        $all: ["enim", "id"],
+      },
+    },
+  },
+]
+
+--------
+
+// List all the companies located in the USA with their corresponding user count.
+[
+  {
+    $match: {
+      "company.location.country": "USA",
+    },
+  },
+  {
+    $group: {
+      _id: null,
+      userCount: {
+        $sum: 1,
+      },
+    },
+  },
+]
+
+
+--------------
+
+
+for books and authors collection
+
+/* lookup -> Performs a left outer join to a collection in the same database to filter in documents from the "joined" collection for processing. The $lookup stage adds a new array field to each input document. The new array field contains the matching documents from the "joined" collection. The $lookup stage passes these reshaped documents to the next stage.*/
+
+//this just creates an array containing author details
+[
+  {
+    $lookup: {
+      from: "authors", //to get data from some other collection
+      localField: "author_id", //a field in the current collection
+      foreignField: "_id", //a field of the referring collection
+      as: "author_details",
+    },
+  },
+]
+
+//this creates a new object 'author_details'
+[
+  {
+    $lookup: {
+      from: "authors", //to get data from some other collection
+      localField: "author_id", //a field in the current collection
+      foreignField: "_id", //a field of the referring collection
+      as: "author_details",
+    },
+  },
+  {
+    $addFields: {
+      author_details: {
+        $first: "$author_details",
+      },
+    },
+  },
+]
